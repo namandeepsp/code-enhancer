@@ -1,0 +1,26 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - TESTING=true
+      - CACHE_PATH=/app/.cache/
+      - LOG_LEVEL=DEBUG
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Hot reload — changes to api/ reflect immediately without rebuilding
+      - ./api:/app/api
+      - ./tests:/app/tests
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ping').read()"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    command: >
+      uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: "1.0"
