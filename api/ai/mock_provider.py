@@ -1,5 +1,6 @@
 import json
 from .base import AIProvider, AIResponse
+from .deepseek_provider import AIProviderError
 
 
 class MockAIProvider(AIProvider):
@@ -66,3 +67,47 @@ class MockAIProvider(AIProvider):
                 "code": "# Generated code\ndef example():\n    pass"
             }
         return json.dumps(result)
+
+
+class MockAIProviderUnreliable(AIProvider):
+    """
+    Returns malformed or edge-case responses to test parser resilience.
+    Cycles through different failure modes on each call.
+    """
+
+    def __init__(self):
+        self._call_count = 0
+
+    def is_available(self) -> bool:
+        return True
+
+    async def complete(self, messages: list[dict], timeout: int) -> AIResponse:
+        self._call_count += 1
+        mode = self._call_count % 8
+
+        if mode == 1:
+            # JSON wrapped in markdown fences
+            content = '```json\n{"already_optimal": false, "variants": [{"title": "T", "description": "D", "code": "x = 1"}]}\n```'
+        elif mode == 2:
+            # Field name aliases — variant instead of variants
+            content = json.dumps({"already_optimal": False, "variant": [{"title": "T", "description": "D", "code": "x = 1"}]})
+        elif mode == 3:
+            # already_optimal with alias field name
+            content = json.dumps({"optimal": True, "reasons": ["code is clean"]})
+        elif mode == 4:
+            # Extra commentary before JSON
+            content = 'Here is the enhanced code:\n{"already_optimal": false, "variants": [{"title": "T", "description": "D", "code": "x = 1"}]}'
+        elif mode == 5:
+            # Single variant as dict instead of list
+            content = json.dumps({"already_optimal": False, "variants": {"title": "T", "description": "D", "code": "x = 1"}})
+        elif mode == 6:
+            # code field alias
+            content = json.dumps({"already_optimal": False, "variants": [{"title": "T", "description": "D", "implementation": "x = 1"}]})
+        elif mode == 7:
+            # Simulate retryable AI provider error
+            raise AIProviderError("Service temporarily unavailable", status_code=503, retryable=True)
+        else:
+            # Normal valid response
+            content = json.dumps({"already_optimal": False, "variants": [{"title": "T", "description": "D", "code": "x = 1"}]})
+
+        return AIResponse(content=content, prompt_tokens=10, completion_tokens=20, total_tokens=30)

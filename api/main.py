@@ -6,8 +6,13 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi import HTTPException
 
+from api.logger import setup_logging, get_logger
 from api.middleware import rate_limiter
+from api.middleware.request_logger import request_logging_middleware
 from api.routes import enhance
+
+setup_logging()
+logger = get_logger("api.main")
 
 app = FastAPI(
     title="Code Enhancer API",
@@ -16,6 +21,9 @@ app = FastAPI(
 )
 
 app.start_time = time.time()
+
+# --- Request logging + ID ---
+app.middleware("http")(request_logging_middleware)
 
 # --- CORS ---
 app.add_middleware(
@@ -64,6 +72,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception(f"Unhandled exception on {request.method} {request.url.path}")
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"success": False, "error": "Internal server error"},

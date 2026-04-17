@@ -3,6 +3,8 @@ from fastapi import Request, HTTPException, status
 
 
 async def verify_api_key(request: Request) -> str:
+    # Phase 1: skip auth entirely in development
+    # Phase 2: replace this body with SSO JWT validation — signature stays identical
     if os.getenv("ENVIRONMENT", "development") == "development":
         return "dev-key"
 

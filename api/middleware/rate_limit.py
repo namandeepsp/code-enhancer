@@ -17,6 +17,7 @@ class RateLimiter:
         return f"{ip}:{ua}"
 
     async def check(self, request: Request) -> bool:
+        # Tighter window in testing so rate limit tests trigger without waiting a full minute
         if os.getenv("TESTING") == "true":
             if not request.url.path.startswith("/api/"):
                 return True
@@ -31,6 +32,7 @@ class RateLimiter:
         window_start = now - window
 
         with self.lock:
+            # Evict timestamps outside the current window
             self.requests[key] = [t for t in self.requests[key] if t > window_start]
 
             if len(self.requests[key]) >= limit:
