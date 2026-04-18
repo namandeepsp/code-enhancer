@@ -1,0 +1,132 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t code-enhancer .
+
+      - name: Run container
+        run: |
+          docker run -d \
+            --name enhancer-test \
+            -p 8000:8000 \
+            --memory="512m" \
+            --memory-swap="512m" \
+            -e ENVIRONMENT=development \
+            -e TESTING=true \
+            -e CACHE_PATH=/app/.cache/ \
+            -e LOG_LEVEL=INFO \
+            code-enhancer
+
+      - name: Wait for service to be ready
+        run: |
+          for i in {1..15}; do
+            if curl -s http://localhost:8000/ping; then
+              echo "Service ready"
+              break
+            fi
+            echo "Attempt $i — waiting..."
+            sleep 2
+          done
+
+      - name: Install test dependencies
+        run: pip install requests pytest pytest-timeout
+
+      - name: Run integration tests
+        run: |
+          cat > test_integration.py << 'EOF'
+          import requests
+          import pytest
+
+          BASE = "http://localhost:8000"
+
+          def test_ping():
+              r = requests.get(f"{BASE}/ping", timeout=5)
+              assert r.status_code == 200
+              assert r.text == "pong"
+
+          def test_health():
+              r = requests.get(f"{BASE}/health", timeout=5)
+              assert r.status_code in (200, 503)
+              assert r.json()["status"] in ("healthy", "degraded", "warning")
+
+          def test_metrics():
+              r = requests.get(f"{BASE}/metrics", timeout=5)
+              assert r.status_code == 200
+              assert "memory_mb" in r.json()
+
+          def test_languages():
+              r = requests.get(f"{BASE}/api/languages", timeout=5)
+              assert r.status_code == 200
+              data = r.json()
+              assert data["success"] is True
+              assert "fastapi" in data["data"]["languages"]
+
+          def test_enhance():
+              r = requests.post(f"{BASE}/api/enhance", json={
+                  "code": "def add(a, b):\n    return a",
+                  "language": "python",
+                  "variants": 1,
+              }, timeout=10)
+              assert r.status_code == 200
+              data = r.json()
+              assert data["success"] is True
+              assert data["task"] == "enhance"
+
+          def test_complete():
+              r = requests.post(f"{BASE}/api/complete", json={
+                  "code": "def foo():\n    pass",
+                  "language": "python",
+                  "variants": 1,
+              }, timeout=10)
+              assert r.status_code == 200
+              data = r.json()
+              assert data["success"] is True
+              assert data["task"] == "complete"
+
+          def test_generate():
+              r = requests.post(f"{BASE}/api/generate", json={
+                  "prompt": "generate python code for a hello world function",
+                  "languages": ["python"],
+                  "variants": 1,
+              }, timeout=10)
+              assert r.status_code == 200
+              data = r.json()
+              assert data["success"] is True
+              assert data["task"] == "generate"
+
+          def test_enhance_cache_hit():
+              payload = {"code": "def ci_cache_test(): pass", "language": "python", "variants": 1}
+              r1 = requests.post(f"{BASE}/api/enhance", json=payload, timeout=10)
+              r2 = requests.post(f"{BASE}/api/enhance", json=payload, timeout=10)
+              assert r1.json()["cached"] is False
+              assert r2.json()["cached"] is True
+
+          def test_invalid_request_returns_422():
+              r = requests.post(f"{BASE}/api/enhance", json={"language": "python"}, timeout=5)
+              assert r.status_code == 422
+
+          def test_response_has_request_id_header():
+              r = requests.get(f"{BASE}/ping", timeout=5)
+              assert "x-request-id" in r.headers
+          EOF
+
+          pytest test_integration.py -v
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker logs enhancer-test
+
+      - name: Check memory usage
+        run: docker stats --no-stream enhancer-test

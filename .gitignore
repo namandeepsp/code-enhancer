@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment files — never commit real keys
+.env.local
+.env.prod
+.env
+
+# Cache directories
+.cache/
+*.cache
+/tmp/test-cache-enhancer/
+
+# pytest
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

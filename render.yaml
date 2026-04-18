@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: code-enhancer
+    env: docker
+    plan: free
+    healthCheckPath: /ping
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: TESTING
+        value: "false"
+      - key: AI_PROVIDER
+        value: gemini
+      - key: DEEPSEEK_MODEL
+        value: deepseek-chat
+      - key: AI_TIMEOUT
+        value: "30"
+      - key: CACHE_PATH
+        value: /app/.cache/
+      - key: CACHE_TTL_HOURS
+        value: "24"
+      - key: CACHE_SIZE_LIMIT_MB
+        value: "500"
+      - key: RATE_LIMIT_RPM
+        value: "30"
+      - key: MAX_VARIANTS
+        value: "3"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      # Set these as secret env vars in Render dashboard — never commit values
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: API_KEY
+        sync: false
