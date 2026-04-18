@@ -120,6 +120,63 @@ class TestAIProviderError:
         assert err.retryable is False
 
 
+# --- Gemini provider ---
+
+class TestGeminiProvider:
+
+    def test_build_payload_separates_system_prompt(self):
+        from api.ai.gemini_provider import GeminiProvider
+        provider = GeminiProvider(api_key="test")
+        messages = [
+            {"role": "system", "content": "You are an expert."},
+            {"role": "user", "content": "Enhance this code."},
+        ]
+        payload = provider._build_payload(messages)
+        assert "systemInstruction" in payload
+        assert payload["systemInstruction"]["parts"][0]["text"] == "You are an expert."
+        assert payload["contents"][0]["role"] == "user"
+        assert payload["contents"][0]["parts"][0]["text"] == "Enhance this code."
+
+    def test_is_available_with_key(self):
+        from api.ai.gemini_provider import GeminiProvider
+        assert GeminiProvider(api_key="test-key").is_available() is True
+
+    def test_is_not_available_without_key(self):
+        from api.ai.gemini_provider import GeminiProvider
+        assert GeminiProvider(api_key="").is_available() is False
+
+    def test_falls_back_to_15_on_503(self):
+        async def run():
+            from api.ai.gemini_provider import GeminiProvider
+            import httpx
+
+            call_count = 0
+            models_called = []
+
+            async def mock_post(url, **kwargs):
+                nonlocal call_count
+                call_count += 1
+                models_called.append(url)
+                req = httpx.Request("POST", url)
+                if "gemini-2.5-flash" in url:
+                    return httpx.Response(503, text="Overloaded", request=req)
+                # fallback model succeeds
+                body_text = json.dumps({"already_optimal": False, "variants": [{"title": "T", "description": "D", "code": "x=1"}]})
+                body = {
+                    "candidates": [{"content": {"parts": [{"text": body_text}]}}],
+                    "usageMetadata": {"promptTokenCount": 10, "candidatesTokenCount": 20, "totalTokenCount": 30},
+                }
+                return httpx.Response(200, json=body, request=req)
+
+            provider = GeminiProvider(api_key="test-key", max_retries=3, retry_base_delay=0.01)
+            with patch("httpx.AsyncClient.post", new=AsyncMock(side_effect=mock_post)):
+                response = await provider.complete([{"role": "user", "content": "test"}], timeout=5)
+                assert any("gemini-flash-latest" in m for m in models_called)
+                assert "already_optimal" in response.content
+
+        asyncio.run(run())
+
+
 # --- EnhancerService error handling ---
 
 class TestEnhancerServiceErrorHandling:

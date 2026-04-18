@@ -8,9 +8,11 @@ services:
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - TESTING=${TESTING:-false}
+      - AI_PROVIDER=${AI_PROVIDER:-gemini}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}
-      - DEEPSEEK_TIMEOUT=${DEEPSEEK_TIMEOUT:-30}
+      - AI_TIMEOUT=${AI_TIMEOUT:-30}
       - API_KEY=${API_KEY:-}
       - CACHE_PATH=/app/.cache/
       - CACHE_TTL_HOURS=${CACHE_TTL_HOURS:-24}

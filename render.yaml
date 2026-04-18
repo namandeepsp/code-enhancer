@@ -9,9 +9,11 @@ services:
         value: production
       - key: TESTING
         value: "false"
+      - key: AI_PROVIDER
+        value: gemini
       - key: DEEPSEEK_MODEL
         value: deepseek-chat
-      - key: DEEPSEEK_TIMEOUT
+      - key: AI_TIMEOUT
         value: "30"
       - key: CACHE_PATH
         value: /app/.cache/
@@ -28,6 +30,8 @@ services:
       - key: PYTHONUNBUFFERED
         value: "1"
       # Set these as secret env vars in Render dashboard — never commit values
+      - key: GEMINI_API_KEY
+        sync: false
       - key: DEEPSEEK_API_KEY
         sync: false
       - key: API_KEY

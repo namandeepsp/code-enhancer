@@ -14,19 +14,21 @@ venv/
 .venv/
 env/
 
-# Environment files
+# Environment files — never commit real keys
 .env.local
 .env.prod
 .env
 
-# Cache
+# Cache directories
 .cache/
 *.cache
+/tmp/test-cache-enhancer/
 
 # pytest
 .pytest_cache/
 htmlcov/
 .coverage
+.coverage.*
 
 # IDE
 .idea/
@@ -34,7 +36,7 @@ htmlcov/
 *.swp
 *.swo
 
-# Docker
+# Logs
 *.log
 
 # OS
